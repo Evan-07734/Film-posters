@@ -1,99 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TMDb Movie Search</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #1c1c1c;
-            color: #fff;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
-        }
-        input[type="text"] {
-            width: 300px;
-            padding: 10px;
-            border-radius: 5px;
-            border: none;
-            margin-right: 10px;
-        }
-        button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            background-color: #e50914;
-            color: white;
-            cursor: pointer;
-        }
-        .movies {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        .movie {
-            margin: 10px;
-            transition: transform 0.2s;
-        }
-        .movie img {
-            width: 200px;
-            border-radius: 10px;
-        }
-        .movie:hover {
-            transform: scale(1.05);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TMDb Movie Search</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #1c1c1c;
+        color: #fff;
+        text-align: center;
+        margin: 0;
+        padding: 20px;
+    }
+    input[type="text"] {
+        width: 300px;
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        margin-right: 10px;
+    }
+    button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        background-color: #e50914;
+        color: white;
+        cursor: pointer;
+    }
+    .movies {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    .movie {
+        margin: 10px;
+        transition: transform 0.2s;
+    }
+    .movie img {
+        width: 200px;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    .movie:hover {
+        transform: scale(1.05);
+    }
+
+    /* Lightbox styles */
+    #lightbox {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    #lightbox img {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 10px;
+    }
+    #lightbox span {
+        position: absolute;
+        top: 20px;
+        right: 40px;
+        font-size: 40px;
+        cursor: pointer;
+        color: white;
+    }
+</style>
 </head>
 <body>
-    <h1>Search Movies via TMDb</h1>
-    <input type="text" id="searchInput" placeholder="Enter movie name">
-    <button onclick="searchMovies()">Search</button>
 
-    <div class="movies" id="moviesContainer"></div>
+<h1>Search Movies via TMDb</h1>
+<input type="text" id="searchInput" placeholder="Enter movie name">
+<button onclick="searchMovies()">Search</button>
 
-    <script>
-        const apiKey = 'e1e21042bebf6f4ce7f4ec10c216b38f';
-        const baseUrl = 'https://api.themoviedb.org/3';
-        const imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
+<div class="movies" id="moviesContainer"></div>
 
-        async function searchMovies() {
-            const query = document.getElementById('searchInput').value;
-            const container = document.getElementById('moviesContainer');
-            container.innerHTML = '';
+<!-- Lightbox container -->
+<div id="lightbox">
+    <span onclick="closeLightbox()">&times;</span>
+    <img id="lightboxImg" src="" alt="Movie Poster">
+</div>
 
-            if (!query) {
-                alert('Please enter a movie name!');
+<script>
+    const apiKey = 'e1e21042bebf6f4ce7f4ec10c216b38f';
+    const baseUrl = 'https://api.themoviedb.org/3';
+    const imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
+
+    async function searchMovies() {
+        const query = document.getElementById('searchInput').value.trim();
+        const container = document.getElementById('moviesContainer');
+        container.innerHTML = '';
+
+        if (!query) {
+            alert('Please enter a movie name!');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${baseUrl}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (data.results.length === 0) {
+                container.innerHTML = '<p>No movies found.</p>';
                 return;
             }
 
-            try {
-                const response = await fetch(`${baseUrl}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
-                const data = await response.json();
-
-                if (data.results.length === 0) {
-                    container.innerHTML = '<p>No movies found.</p>';
-                    return;
+            data.results.forEach(movie => {
+                if (movie.poster_path) {
+                    const movieDiv = document.createElement('div');
+                    movieDiv.classList.add('movie');
+                    movieDiv.innerHTML = `
+                        <img src="${imageBaseUrl + movie.poster_path}" alt="${movie.title}" onclick="openLightbox('${imageBaseUrl + movie.poster_path}')">
+                        <p>${movie.title} (${movie.release_date ? movie.release_date.slice(0,4) : 'N/A'})</p>
+                    `;
+                    container.appendChild(movieDiv);
                 }
-
-                data.results.forEach(movie => {
-                    if (movie.poster_path) {
-                        const movieDiv = document.createElement('div');
-                        movieDiv.classList.add('movie');
-                        movieDiv.innerHTML = `
-                            <img src="${imageBaseUrl + movie.poster_path}" alt="${movie.title}">
-                            <p>${movie.title} (${movie.release_date ? movie.release_date.slice(0,4) : 'N/A'})</p>
-                        `;
-                        container.appendChild(movieDiv);
-                    }
-                });
-            } catch (error) {
-                console.error(error);
-                container.innerHTML = '<p>Error fetching movies. Try again later.</p>';
-            }
+            });
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = '<p>Error fetching movies. Try again later.</p>';
         }
-    </script>
+    }
+
+    function openLightbox(src) {
+        document.getElementById('lightbox').style.display = 'flex';
+        document.getElementById('lightboxImg').src = src;
+    }
+
+    function closeLightbox() {
+        document.getElementById('lightbox').style.display = 'none';
+        document.getElementById('lightboxImg').src = '';
+    }
+</script>
+
 </body>
 </html>
