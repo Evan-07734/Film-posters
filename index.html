@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TMDb Movie Search</title>
+<title>TMDb Movie Posters Viewer</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -28,26 +28,36 @@
         color: white;
         cursor: pointer;
     }
-    .movies {
+    .movies, .posters {
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
         margin-top: 20px;
     }
-    .movie {
+    .movie, .poster {
         margin: 10px;
         transition: transform 0.2s;
     }
-    .movie img {
+    .movie img, .poster img {
         width: 200px;
         border-radius: 10px;
         cursor: pointer;
     }
-    .movie:hover {
+    .movie:hover, .poster:hover {
         transform: scale(1.05);
     }
 
-    /* Lightbox styles */
+    #backButton {
+        margin-top: 20px;
+        padding: 10px 15px;
+        background-color: #555;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        display: none;
+    }
+
+    /* Lightbox */
     #lightbox {
         position: fixed;
         top: 0;
@@ -77,68 +87,114 @@
 </head>
 <body>
 
-<h1>Search Movies via TMDb</h1>
+<h1>TMDb Movie Posters Viewer</h1>
 <input type="text" id="searchInput" placeholder="Enter movie name">
 <button onclick="searchMovies()">Search</button>
 
 <div class="movies" id="moviesContainer"></div>
+<div class="posters" id="postersContainer"></div>
+<button id="backButton" onclick="backToMovies()">Back to Movies</button>
 
-<!-- Lightbox container -->
+<!-- Lightbox -->
 <div id="lightbox">
     <span onclick="closeLightbox()">&times;</span>
-    <img id="lightboxImg" src="" alt="Movie Poster">
+    <img id="lightboxImg" src="" alt="Poster">
 </div>
 
 <script>
-    const apiKey = 'e1e21042bebf6f4ce7f4ec10c216b38f';
-    const baseUrl = 'https://api.themoviedb.org/3';
-    const imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
+const apiKey = 'e1e21042bebf6f4ce7f4ec10c216b38f';
+const baseUrl = 'https://api.themoviedb.org/3';
+const imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
-    async function searchMovies() {
-        const query = document.getElementById('searchInput').value.trim();
-        const container = document.getElementById('moviesContainer');
-        container.innerHTML = '';
+function clearContainers() {
+    document.getElementById('moviesContainer').innerHTML = '';
+    document.getElementById('postersContainer').innerHTML = '';
+    document.getElementById('backButton').style.display = 'none';
+}
 
-        if (!query) {
-            alert('Please enter a movie name!');
+// Step 1: Search movies by name
+async function searchMovies() {
+    const query = document.getElementById('searchInput').value.trim();
+    const container = document.getElementById('moviesContainer');
+    container.innerHTML = '';
+    document.getElementById('postersContainer').innerHTML = '';
+
+    if (!query) {
+        alert('Please enter a movie name!');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${baseUrl}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data.results.length === 0) {
+            container.innerHTML = '<p>No movies found.</p>';
             return;
         }
 
-        try {
-            const response = await fetch(`${baseUrl}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
-            const data = await response.json();
+        data.results.forEach(movie => {
+            const movieDiv = document.createElement('div');
+            movieDiv.classList.add('movie');
+            movieDiv.innerHTML = `
+                <img src="${movie.poster_path ? imageBaseUrl + movie.poster_path : ''}" alt="${movie.title}" onclick="viewPosters(${movie.id}, '${movie.title}')">
+                <p>${movie.title} (${movie.release_date ? movie.release_date.slice(0,4) : 'N/A'})</p>
+            `;
+            container.appendChild(movieDiv);
+        });
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = '<p>Error fetching movies.</p>';
+    }
+}
 
-            if (data.results.length === 0) {
-                container.innerHTML = '<p>No movies found.</p>';
-                return;
-            }
+// Step 2: View all posters for selected movie
+async function viewPosters(movieId, movieTitle) {
+    const container = document.getElementById('postersContainer');
+    container.innerHTML = '';
+    document.getElementById('moviesContainer').innerHTML = '';
+    document.getElementById('backButton').style.display = 'inline-block';
 
-            data.results.forEach(movie => {
-                if (movie.poster_path) {
-                    const movieDiv = document.createElement('div');
-                    movieDiv.classList.add('movie');
-                    movieDiv.innerHTML = `
-                        <img src="${imageBaseUrl + movie.poster_path}" alt="${movie.title}" onclick="openLightbox('${imageBaseUrl + movie.poster_path}')">
-                        <p>${movie.title} (${movie.release_date ? movie.release_date.slice(0,4) : 'N/A'})</p>
-                    `;
-                    container.appendChild(movieDiv);
-                }
-            });
-        } catch (error) {
-            console.error(error);
-            container.innerHTML = '<p>Error fetching movies. Try again later.</p>';
+    try {
+        const response = await fetch(`${baseUrl}/movie/${movieId}/images?api_key=${apiKey}`);
+        const data = await response.json();
+        const posters = data.posters;
+
+        if (posters.length === 0) {
+            container.innerHTML = '<p>No posters available.</p>';
+            return;
         }
-    }
 
-    function openLightbox(src) {
-        document.getElementById('lightbox').style.display = 'flex';
-        document.getElementById('lightboxImg').src = src;
+        posters.forEach(poster => {
+            const posterDiv = document.createElement('div');
+            posterDiv.classList.add('poster');
+            posterDiv.innerHTML = `
+                <img src="${imageBaseUrl + poster.file_path}" alt="${movieTitle}" onclick="openLightbox('${imageBaseUrl + poster.file_path}')">
+            `;
+            container.appendChild(posterDiv);
+        });
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = '<p>Error fetching posters.</p>';
     }
+}
 
-    function closeLightbox() {
-        document.getElementById('lightbox').style.display = 'none';
-        document.getElementById('lightboxImg').src = '';
-    }
+function backToMovies() {
+    document.getElementById('postersContainer').innerHTML = '';
+    document.getElementById('moviesContainer').innerHTML = '';
+    document.getElementById('searchInput').value = '';
+    document.getElementById('backButton').style.display = 'none';
+}
+
+function openLightbox(src) {
+    document.getElementById('lightbox').style.display = 'flex';
+    document.getElementById('lightboxImg').src = src;
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+    document.getElementById('lightboxImg').src = '';
+}
 </script>
 
 </body>
