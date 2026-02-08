@@ -3,102 +3,103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TMDb Movie Posters Viewer</title>
+<title>TMDb Movie & TV Posters Viewer</title>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #1c1c1c;
-        color: #fff;
-        text-align: center;
-        margin: 0;
-        padding: 20px;
-    }
-    input[type="text"] {
-        width: 300px;
-        padding: 10px;
-        border-radius: 5px;
-        border: none;
-        margin-right: 10px;
-    }
-    button {
-        padding: 10px 15px;
-        border: none;
-        border-radius: 5px;
-        background-color: #e50914;
-        color: white;
-        cursor: pointer;
-    }
-    .movies, .posters {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        margin-top: 20px;
-    }
-    .movie, .poster {
-        margin: 10px;
-        transition: transform 0.2s;
-    }
-    .movie img, .poster img {
-        width: 200px;
-        border-radius: 10px;
-        cursor: pointer;
-    }
-    .movie:hover, .poster:hover {
-        transform: scale(1.05);
-    }
-
-    #backButton {
-        margin-top: 20px;
-        padding: 10px 15px;
-        background-color: #555;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        display: none;
-    }
-
-    /* Lightbox */
-    #lightbox {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.9);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-    #lightbox img {
-        max-width: 90%;
-        max-height: 90%;
-        border-radius: 10px;
-    }
-    #lightbox span {
-        position: absolute;
-        top: 20px;
-        right: 40px;
-        font-size: 40px;
-        cursor: pointer;
-        color: white;
-    }
+body {
+    font-family: Arial, sans-serif;
+    background-color: #1c1c1c;
+    color: #fff;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+input[type="text"] {
+    width: 300px;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    margin-right: 10px;
+}
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: #e50914;
+    color: white;
+    cursor: pointer;
+}
+.movies, .images-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 20px;
+}
+.movie, .poster, .banner {
+    margin: 10px;
+    transition: transform 0.2s;
+}
+.movie img, .poster img, .banner img {
+    width: 200px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.movie:hover, .poster:hover, .banner:hover {
+    transform: scale(1.05);
+}
+#backButton {
+    margin-top: 20px;
+    padding: 10px 15px;
+    background-color: #555;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    display: none;
+}
+/* Lightbox */
+#lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+#lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 10px;
+}
+#lightbox span {
+    position: absolute;
+    top: 20px;
+    right: 40px;
+    font-size: 40px;
+    cursor: pointer;
+    color: white;
+}
 </style>
 </head>
 <body>
 
-<h1>TMDb Movie Posters Viewer</h1>
-<input type="text" id="searchInput" placeholder="Enter movie name">
-<button onclick="searchMovies()">Search</button>
+<h1>TMDb Movie & TV Viewer</h1>
+<input type="text" id="searchInput" placeholder="Enter movie or TV show name">
+<button onclick="searchItems()">Search</button>
 
 <div class="movies" id="moviesContainer"></div>
-<div class="posters" id="postersContainer"></div>
-<button id="backButton" onclick="backToMovies()">Back to Movies</button>
+<button id="backButton" onclick="backToResults()">Back to Results</button>
+
+<!-- Images section -->
+<div id="postersSection" class="images-section"></div>
+<div id="bannersSection" class="images-section"></div>
 
 <!-- Lightbox -->
 <div id="lightbox">
     <span onclick="closeLightbox()">&times;</span>
-    <img id="lightboxImg" src="" alt="Poster">
+    <img id="lightboxImg" src="" alt="Poster/Banner">
 </div>
 
 <script>
@@ -108,82 +109,91 @@ const imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
 function clearContainers() {
     document.getElementById('moviesContainer').innerHTML = '';
-    document.getElementById('postersContainer').innerHTML = '';
+    document.getElementById('postersSection').innerHTML = '';
+    document.getElementById('bannersSection').innerHTML = '';
     document.getElementById('backButton').style.display = 'none';
 }
 
-// Step 1: Search movies by name
-async function searchMovies() {
+// Step 1: Search movies & TV shows
+async function searchItems() {
+    clearContainers();
     const query = document.getElementById('searchInput').value.trim();
     const container = document.getElementById('moviesContainer');
-    container.innerHTML = '';
-    document.getElementById('postersContainer').innerHTML = '';
-
-    if (!query) {
-        alert('Please enter a movie name!');
-        return;
-    }
+    if (!query) return alert('Please enter a name!');
 
     try {
-        const response = await fetch(`${baseUrl}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
-        const data = await response.json();
+        const movieResponse = await fetch(`${baseUrl}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
+        const movieData = await movieResponse.json();
+        const tvResponse = await fetch(`${baseUrl}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}`);
+        const tvData = await tvResponse.json();
 
-        if (data.results.length === 0) {
-            container.innerHTML = '<p>No movies found.</p>';
+        const combinedResults = [...movieData.results.map(item => ({...item, type: 'movie'})),
+                                 ...tvData.results.map(item => ({...item, type: 'tv'}))];
+
+        if (combinedResults.length === 0) {
+            container.innerHTML = '<p>No results found.</p>';
             return;
         }
 
-        data.results.forEach(movie => {
-            const movieDiv = document.createElement('div');
-            movieDiv.classList.add('movie');
-            movieDiv.innerHTML = `
-                <img src="${movie.poster_path ? imageBaseUrl + movie.poster_path : ''}" alt="${movie.title}" onclick="viewPosters(${movie.id}, '${movie.title}')">
-                <p>${movie.title} (${movie.release_date ? movie.release_date.slice(0,4) : 'N/A'})</p>
+        combinedResults.forEach(item => {
+            const div = document.createElement('div');
+            div.classList.add('movie');
+            div.innerHTML = `
+                <img src="${item.poster_path ? imageBaseUrl + item.poster_path : ''}" alt="${item.title || item.name}" onclick="viewImages('${item.type}', ${item.id}, '${item.title || item.name}')">
+                <p>${item.title || item.name} (${item.release_date ? item.release_date.slice(0,4) : item.first_air_date ? item.first_air_date.slice(0,4) : 'N/A'})</p>
             `;
-            container.appendChild(movieDiv);
+            container.appendChild(div);
         });
-    } catch (error) {
-        console.error(error);
-        container.innerHTML = '<p>Error fetching movies.</p>';
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = '<p>Error fetching results.</p>';
     }
 }
 
-// Step 2: View all posters for selected movie
-async function viewPosters(movieId, movieTitle) {
-    const container = document.getElementById('postersContainer');
-    container.innerHTML = '';
+// Step 2: View posters & banners
+async function viewImages(type, id, title) {
     document.getElementById('moviesContainer').innerHTML = '';
     document.getElementById('backButton').style.display = 'inline-block';
+    const postersContainer = document.getElementById('postersSection');
+    const bannersContainer = document.getElementById('bannersSection');
+    postersContainer.innerHTML = `<h2>Posters for "${title}"</h2>`;
+    bannersContainer.innerHTML = `<h2>Banners/Backdrops for "${title}"</h2>`;
 
     try {
-        const response = await fetch(`${baseUrl}/movie/${movieId}/images?api_key=${apiKey}`);
+        const response = await fetch(`${baseUrl}/${type}/${id}/images?api_key=${apiKey}`);
         const data = await response.json();
-        const posters = data.posters;
 
-        if (posters.length === 0) {
-            container.innerHTML = '<p>No posters available.</p>';
-            return;
-        }
+        const posters = data.posters || [];
+        const banners = data.backdrops || [];
 
-        posters.forEach(poster => {
-            const posterDiv = document.createElement('div');
-            posterDiv.classList.add('poster');
-            posterDiv.innerHTML = `
-                <img src="${imageBaseUrl + poster.file_path}" alt="${movieTitle}" onclick="openLightbox('${imageBaseUrl + poster.file_path}')">
-            `;
-            container.appendChild(posterDiv);
+        if (posters.length === 0) postersContainer.innerHTML += '<p>No posters available.</p>';
+        if (banners.length === 0) bannersContainer.innerHTML += '<p>No banners available.</p>';
+
+        posters.forEach(p => {
+            const div = document.createElement('div');
+            div.classList.add('poster');
+            div.innerHTML = `<img src="${imageBaseUrl + p.file_path}" alt="${title}" onclick="openLightbox('${imageBaseUrl + p.file_path}')">`;
+            postersContainer.appendChild(div);
         });
-    } catch (error) {
-        console.error(error);
-        container.innerHTML = '<p>Error fetching posters.</p>';
+
+        banners.forEach(b => {
+            const div = document.createElement('div');
+            div.classList.add('banner');
+            div.innerHTML = `<img src="${imageBaseUrl + b.file_path}" alt="${title}" onclick="openLightbox('${imageBaseUrl + b.file_path}')">`;
+            bannersContainer.appendChild(div);
+        });
+
+    } catch (err) {
+        console.error(err);
+        postersContainer.innerHTML = '<p>Error fetching images.</p>';
     }
 }
 
-function backToMovies() {
-    document.getElementById('postersContainer').innerHTML = '';
-    document.getElementById('moviesContainer').innerHTML = '';
-    document.getElementById('searchInput').value = '';
+function backToResults() {
+    document.getElementById('postersSection').innerHTML = '';
+    document.getElementById('bannersSection').innerHTML = '';
     document.getElementById('backButton').style.display = 'none';
+    searchItems();
 }
 
 function openLightbox(src) {
